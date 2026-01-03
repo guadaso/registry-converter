@@ -1,0 +1,50 @@
+{
+  "version": 2,
+  "name": "registry-converter",
+  "builds": [
+    {
+      "src": "vite.config.js",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["api/**/*"]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/b2/authorize",
+      "dest": "/api/b2/authorize.js"
+    },
+    {
+      "src": "/api/b2/upload-file(.*)",
+      "dest": "/api/b2/upload-file.js"
+    },
+    {
+      "src": "/api/b2/create-folder",
+      "dest": "/api/b2/create-folder.js"
+    },
+    {
+      "src": "/api/b2/delete-item",
+      "dest": "/api/b2/delete-item.js"
+    },
+    {
+      "src": "/api/b2/download-file(.*)",
+      "dest": "/api/b2/download-file.js"
+    },
+    {
+      "src": "/api/b2/b2_list_file_names",
+      "dest": "/api/b2/b2_list_file_names.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}

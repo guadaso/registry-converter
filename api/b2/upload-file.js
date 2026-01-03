@@ -2,6 +2,7 @@ import { Buffer } from 'buffer';
 import formidable from 'formidable';
 import { Readable } from 'stream';
 import crypto from 'crypto';
+import fs from 'fs/promises';
 
 const B2_KEY_ID = process.env.B2_KEY_ID || '0033bed499501450000000002';
 const B2_APPLICATION_KEY = process.env.B2_APPLICATION_KEY || 'K0032ZG3IYROgkaVsMVwSdNTSANgX4E';
@@ -106,15 +107,6 @@ export default async function handler(req, res) {
 }
 
 // Helper function to read file from temp location
-function readFile(filepath) {
-  return new Promise((resolve, reject) => {
-    const fs = require('fs');
-    fs.readFile(filepath, (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data);
-      }
-    });
-  });
+async function readFile(filepath) {
+  return await fs.readFile(filepath);
 }

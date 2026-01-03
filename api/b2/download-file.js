@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     const buffer = await downloadRes.arrayBuffer();
     res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName.split('/').pop())}"`);
-    res.send(Buffer.from(buffer));
+    res.status(200).send(Buffer.from(buffer));
   } catch (err) {
     console.error('Download error:', err);
     res.status(500).json({ error: err.message });

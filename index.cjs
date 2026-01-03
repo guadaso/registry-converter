@@ -284,7 +284,7 @@ app.post('/api/b2/b2_list_file_names', async (req, res) => {
 });
 
 // ✅ ЗАПУСК СЕРВЕРА — только для локальной разработки
-if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === undefined) {
+if (!process.env.VERCEL_ENV) {
   app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
   });

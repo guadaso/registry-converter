@@ -7,10 +7,10 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-const B2_KEY_ID = '0033bed499501450000000002';
-const B2_APPLICATION_KEY = 'K0032ZG3IYROgkaVsMVwSdNTSANgX4E';
-const BUCKET_ID = '233b1e5d04b9492590b10415';
-const RESTRICTED_ROOT = 'public/templates/';
+const B2_KEY_ID = process.env.B2_KEY_ID || '0033bed499501450000000002';
+const B2_APPLICATION_KEY = process.env.B2_APPLICATION_KEY || 'K0032ZG3IYROgkaVsMVwSdNTSANgX4E';
+const BUCKET_ID = process.env.BUCKET_ID || '233b1e5d04b9492590b10415';
+const RESTRICTED_ROOT = process.env.RESTRICTED_ROOT || 'public/templates/';
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
@@ -284,6 +284,10 @@ app.post('/api/b2/b2_list_file_names', async (req, res) => {
 });
 
 // ✅ ЗАПУСК СЕРВЕРА — только для локальной разработки
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL_ENV) {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

@@ -1,18 +1,19 @@
 // src/App.jsx
 import React, { useEffect } from 'react';
-import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import Registries from './components/Registries';
 import Templates from './components/Templates';
+import RegistriesAutomatic from './components/RegistriesAutomatic';
 
 export default function App() {
   const location = useLocation();
 
   useEffect(() => {
     const path = location.pathname;
-    if (path === '/' || path === '/registries') {
-      document.title = 'Registry Converter — Реестры';
-    } else if (path === '/templates') {
+    if (path === '/' || path === '/templates') {
       document.title = 'Registry Converter — Шаблоны';
+    } else if (path === '/registries') {
+      document.title = 'Registry Converter — Реестры';
     } else {
       document.title = 'Registry Converter';
     }
@@ -35,10 +36,18 @@ export default function App() {
             </li>
             <li>
               <NavLink
-                to="/registries"
+                to="/registries/manual"
                 className={({ isActive }) => (isActive ? 'active' : '')}
               >
-                Реестры
+                Реестры(Ручной ввод)
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/registries/auto"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                Реестры(автоматически)
               </NavLink>
             </li>
           </ul>
@@ -48,8 +57,9 @@ export default function App() {
       {/* Основной контент */}
       <div className="main-content">
         <Routes>
-          <Route path="/" element={<Registries />} />
-          <Route path="/registries" element={<Registries />} />
+          <Route path="/" element={<Navigate to="/templates" replace />} />
+          <Route path="/registries/manual" element={<Registries />} />
+          <Route path="/registries/auto" element={<RegistriesAutomatic />} />
           <Route path="/templates" element={<Templates />} />
         </Routes>
       </div>

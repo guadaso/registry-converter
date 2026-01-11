@@ -106,7 +106,7 @@ public
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
-
+index.cjs
 # Temporary files
 *.tmp
 *.temp

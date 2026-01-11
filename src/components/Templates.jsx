@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const BUCKET_ID = '233b1e5d04b9492590b10415';
 const RESTRICTED_ROOT = 'public/templates/';
-
+const BACKEND_URL = 'https://breakable-jacky-razdymakho-e2177777f.koyeb.app';
 let authData = null;
 
 const authorizeAccount = async () => {
   if (authData) return authData;
-  const response = await fetch('/api/b2/authorize');
+  const response = await fetch(`/api/b2/authorize`);
   if (!response.ok) throw new Error('Auth failed');
   authData = await response.json();
   return authData;
@@ -517,7 +517,7 @@ export default function Templates() {
                     background: 'none',
                     border: 'none',
                     fontSize: '14px',
-                    color: 'red',
+                    color: 'black',
                     cursor: deleting ? 'not-allowed' : 'pointer',
                     opacity: deleting ? 0.5 : 1,
                   }}

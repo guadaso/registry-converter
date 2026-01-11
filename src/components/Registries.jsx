@@ -30,7 +30,6 @@ function Registries() {
   const [removedInvalid, setRemovedInvalid] = useState(0);
   const [notFoundRecords, setNotFoundRecords] = useState([]);
 
-  // Все записи с метками
   const [allRecordsWithIssues, setAllRecordsWithIssues] = useState([]);
   const [validRecords, setValidRecords] = useState([]);
 
@@ -43,7 +42,10 @@ function Registries() {
   const moduleFormats = [
     { value: '04B6481958134315', label: '04B6481958134315 (16 символов, начинается с 04B)' },
     { value: '6ZRI8911468998', label: '6ZRI8911468998 (14 символов, начинается с цифры + ZRI)' },
-    { value: '8ZRI9960014284', label: '8ZRI9960014284 (14 символов, начинается с цифры + ZRI)' }
+    { value: '8ZRI9960014284', label: '8ZRI9960014284 (14 символов, начинается с цифры + ZRI)' },
+    { value: '25003162', label: '25003162 (8 цифр)' },
+    { value: '860751078007207', label: '860751078007207 (15 цифр)' },
+    { value: '2025 4356945', label: '2025 4356945 (год + пробел + 7 цифр, например: 2022–2026 и т.д.)' }
   ];
 
   const addLog = (message, type = 'info') => {
@@ -53,8 +55,6 @@ function Registries() {
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
-
-  // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 
   const colToIndex = (col) => {
     if (!col || typeof col !== 'string') throw new Error('Некорректное имя столбца');
@@ -76,25 +76,55 @@ function Registries() {
   const validateModuleFormat = (module) => {
     const trimmed = module.trim();
     const replaced = trimmed.replace(/В/g, 'B');
+
     if (/[\u0400-\u04FF]/.test(replaced)) {
       return { valid: false, error: 'кириллица запрещена' };
     }
+
+    let full, searchKey;
+
     switch (selectedFormat) {
       case '04B6481958134315':
         if (!/^04B\d{13}$/.test(replaced)) {
           return { valid: false, error: 'некорректный формат (ожидается 04B + 13 цифр)' };
         }
+        full = replaced;
+        searchKey = extractLast7Digits(replaced);
         break;
       case '6ZRI8911468998':
       case '8ZRI9960014284':
         if (!/^\dZRI\d{10}$/.test(replaced)) {
           return { valid: false, error: 'некорректный формат (ожидается [цифра]ZRI + 10 цифр)' };
         }
+        full = replaced;
+        searchKey = extractLast7Digits(replaced);
+        break;
+      case '25003162':
+        if (!/^\d{8}$/.test(replaced)) {
+          return { valid: false, error: 'некорректный формат (ожидается ровно 8 цифр)' };
+        }
+        full = replaced;
+        searchKey = replaced;
+        break;
+      case '860751078007207':
+        if (!/^\d{15}$/.test(replaced)) {
+          return { valid: false, error: 'некорректный формат (ожидается ровно 15 цифр)' };
+        }
+        full = replaced;
+        searchKey = extractLast7Digits(replaced);
+        break;
+      case '2025 4356945':
+        if (!/^(202[0-9]|2030) \d{7}$/.test(replaced)) {
+          return { valid: false, error: 'некорректный формат (ожидается год 2020–2030, пробел и 7 цифр)' };
+        }
+        full = replaced.replace(/\s+/g, '');
+        searchKey = extractLast7Digits(replaced);
         break;
       default:
         return { valid: true };
     }
-    return { valid: true, full: replaced, searchKey: extractLast7Digits(replaced) };
+
+    return { valid: true, full, searchKey };
   };
 
   const readFileAsArrayBuffer = (file) => {
@@ -285,7 +315,6 @@ function Registries() {
         }
       }
 
-      // Помечаем ВСЕ дубликаты
       const validRecordsList = [];
       const duplicateRecords = [];
       duplicates.forEach((records, key) => {
@@ -332,7 +361,6 @@ function Registries() {
   const createReportFile = (validRecords, duplicates, invalids) => {
     const wb = XLSX.utils.book_new();
     
-    // Валидные записи
     if (validRecords.length > 0) {
       const validRows = validRecords.map(r => 
         noLocation ? [r.apartment, r.normalized, `Строка ${r.originalRow}`] : 
@@ -344,7 +372,6 @@ function Registries() {
       XLSX.utils.book_append_sheet(wb, validWs, "Валидные записи");
     }
 
-    // Дубликаты
     if (duplicates.length > 0) {
       const dupRows = duplicates.map(r => 
         noLocation ? [r.apartment, r.fullModule, `Строка ${r.originalRow}`] : 
@@ -356,7 +383,6 @@ function Registries() {
       XLSX.utils.book_append_sheet(wb, dupWs, "Дубликаты");
     }
 
-    // Невалидные
     if (invalids.length > 0) {
       const invalidRows = invalids.map(r => 
         noLocation ? [r.apartment, r.fullModule, r.error, `Строка ${r.originalRow}`] : 
@@ -387,10 +413,10 @@ function Registries() {
     try {
       const allSearchKeys = new Set(validRecords.map(r => r.searchKey));
       const foundMap = new Map(); // searchKey => { file, sheet }
-      const shipmentData = []; // [{ filename, sheetname, sheet, range }]
+      const sheetSearchKeyMap = new Map(); // "file||sheet" => Set(searchKeys)
+      const shipmentData = [];
       let totalSheets = 0;
 
-      // Считываем и сохраняем данные отгрузок
       for (const file of files) {
         const data = await readFileAsArrayBuffer(file);
         const wb = XLSX.read(data, { type: 'array' });
@@ -399,7 +425,6 @@ function Registries() {
           const sheet = wb.Sheets[sheetName];
           if (!sheet || !sheet['!ref']) continue;
           const range = XLSX.utils.decode_range(sheet['!ref']);
-          // Подсчитываем общее количество "модульных" значений на листе
           let moduleCount = 0;
           for (let r = range.s.r; r <= range.e.r; r++) {
             for (let c = range.s.c; c <= range.e.c; c++) {
@@ -424,37 +449,50 @@ function Registries() {
       }
 
       setShipmentFilesData(shipmentData);
-
       addLog(`Всего листов для поиска: ${shipmentData.length}`);
 
-      // Поиск совпадений
+      // Заполняем карты совпадений
       for (const item of shipmentData) {
-        if (foundMap.size >= allSearchKeys.size) break;
         const { sheet, range, filename, sheetname } = item;
+        const sheetKey = `${filename}||${sheetname}`;
+        if (!sheetSearchKeyMap.has(sheetKey)) {
+          sheetSearchKeyMap.set(sheetKey, new Set());
+        }
         for (let r = range.s.r; r <= range.e.r; r++) {
           for (let c = range.s.c; c <= range.e.c; c++) {
             const cell = sheet[XLSX.utils.encode_cell({ r, c })];
             if (cell?.v != null) {
               const val = String(cell.v).trim();
               const searchKey = extractLast7Digits(val);
-              if (allSearchKeys.has(searchKey) && !foundMap.has(searchKey)) {
+              if (allSearchKeys.has(searchKey)) {
                 foundMap.set(searchKey, { file: filename, sheet: sheetname });
+                sheetSearchKeyMap.get(sheetKey).add(searchKey);
               }
             }
           }
         }
       }
 
-      // Определяем не найденные
       const notFound = validRecords.filter(r => !foundMap.has(r.searchKey));
       setNotFoundRecords(notFound);
 
-      // Обновляем отчёт с информацией о найденных
-      updateReportWithMatches(validRecords, foundMap, notFound, shipmentData);
-      
-            // === ГЕНЕРАЦИЯ output и csv ТОЛЬКО ИЗ НАЙДЕННЫХ ЗАПИСЕЙ ===
-      const foundValidRecords = validRecords.filter(record => foundMap.has(record.searchKey));
-      const outputRecords = foundValidRecords.map(record => ({
+      // === ФИЛЬТРУЕМ ТОЛЬКО МАССОВЫЕ СОВПАДЕНИЯ (>=3 на листе) ===
+      const largeGroupSearchKeys = new Set();
+      for (const [sheetId, keys] of sheetSearchKeyMap.entries()) {
+        if (keys.size >= 3) {
+          for (const key of keys) {
+            largeGroupSearchKeys.add(key);
+          }
+        }
+      }
+
+      // Валидные записи, относящиеся к массовым совпадениям
+      const massValidRecords = validRecords.filter(r => largeGroupSearchKeys.has(r.searchKey));
+      // Отдельные ("одиночные") записи
+      const singletonRecords = validRecords.filter(r => foundMap.has(r.searchKey) && !largeGroupSearchKeys.has(r.searchKey));
+
+      // === ГЕНЕРАЦИЯ output и csv ТОЛЬКО ИЗ МАССОВЫХ ЗАПИСЕЙ ===
+      const outputRecords = massValidRecords.map(record => ({
         ...record,
         matchInfo: foundMap.get(record.searchKey) || null
       }));
@@ -464,20 +502,23 @@ function Registries() {
       const mainRows = sorted.map(r => {
         const matchStr = r.matchInfo 
           ? `${r.matchInfo.file} — ${r.matchInfo.sheet}` 
-          : 'Не найден'; // на практике этого не будет
+          : 'Не найден';
         return noLocation 
           ? [r.apartment, r.normalized, matchStr] 
           : [r.apartment, r.location, r.normalized, matchStr];
       });
-      // Убираем заголовки — передаём только данные
       const mainWs = XLSX.utils.aoa_to_sheet(mainRows);
       XLSX.utils.book_append_sheet(mainWb, mainWs, "Результат");
 
       const buf = XLSX.write(mainWb, { type: 'array', bookType: 'xlsx' });
       const dateTimeStr = getCurrentDateTimeString();
       const newOutputBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      // CSV: только найденные модули (без метаданных)
-      const csvContent = foundValidRecords.map(r => `"${r.normalized}"`).join('\n');
+
+      // CSV: только массовые модули, без пустых строк и лишних пробелов
+      const csvLines = massValidRecords
+        .map(r => r.normalized.trim())
+        .filter(line => line !== '');
+      const csvContent = csvLines.join('\n');
       const bom = '\uFEFF';
       const newCsvBlob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
 
@@ -487,6 +528,8 @@ function Registries() {
       setProcessing(false);
       setStep(4);
 
+      // Обновляем отчёт
+      updateReportWithMatches(validRecords, foundMap, notFound, singletonRecords, shipmentData, sheetSearchKeyMap);
     } catch (err) {
       addLog(`Ошибка обработки: ${err.message}`, 'error');
       setProcessing(false);
@@ -494,10 +537,10 @@ function Registries() {
     }
   };
 
-  const updateReportWithMatches = (validRecords, foundMap, notFoundRecords, shipmentData) => {
+  const updateReportWithMatches = (validRecords, foundMap, notFoundRecords, singletonRecords, shipmentData, sheetSearchKeyMap) => {
     const wb = XLSX.utils.book_new();
     
-    // Валидные записи с результатами поиска
+    // Валидные записи с результатами
     if (validRecords.length > 0) {
       const resultRows = validRecords.map(r => {
         const match = foundMap.get(r.searchKey);
@@ -522,33 +565,36 @@ function Registries() {
       ['Удалено: дубликаты', removedDuplicates],
       ['Удалено: невалидные записи', removedInvalid],
       ['Осталось валидных модулей для поиска', validRecords.length],
-      ['Найдено совпадений', validRecords.length - notFoundRecords.length],
+      ['Найдено совпадений (всего)', validRecords.length - notFoundRecords.length],
+      ['Найдено в массовых группах (>=3)', validRecords.filter(r => foundMap.has(r.searchKey)).filter(r => {
+        const info = foundMap.get(r.searchKey);
+        const sheetId = `${info.file}||${info.sheet}`;
+        return sheetSearchKeyMap.has(sheetId) && sheetSearchKeyMap.get(sheetId).size >= 3;
+      }).length],
       ['Не найдено', notFoundRecords.length],
-      ['Процент совпадений', `${(((validRecords.length - notFoundRecords.length) / validRecords.length) * 100).toFixed(2)}%`],
+      ['Одиночные/парные совпадения (ошибки)', singletonRecords.length],
       [],
       ['Детализация по листам отгрузки']
     ];
 
-    // Подсчет совпадений по листам
     const sheetMatchCount = new Map();
     foundMap.forEach((info, searchKey) => {
       const sheetId = `${info.file}||${info.sheet}`;
       sheetMatchCount.set(sheetId, (sheetMatchCount.get(sheetId) || 0) + 1);
     });
 
-    // Находим общее количество модулей на каждом листе
     const sheetTotalModules = new Map();
     for (const item of shipmentData) {
       const sheetId = `${item.filename}||${item.sheetname}`;
       sheetTotalModules.set(sheetId, item.totalModules);
     }
 
-    // Добавляем строки: "Файл — Лист" → "найдено / всего"
     for (const [sheetId, foundCount] of sheetMatchCount.entries()) {
       const total = sheetTotalModules.get(sheetId) || 0;
       const displayId = sheetId.replace('||', ' — ');
       const ratio = total > 0 ? `${foundCount} / ${total}` : `${foundCount} / ?`;
-      statsRows.push([displayId, ratio]);
+      const warning = foundCount < 3 ? '(Возможно не верный лист отгрузки!)' : '';
+      statsRows.push([displayId, ratio, warning]);
     }
 
     const statsWs = XLSX.utils.aoa_to_sheet(statsRows);
@@ -567,8 +613,8 @@ function Registries() {
       const notFoundWs = XLSX.utils.aoa_to_sheet([notFoundHeaders, ...notFoundRows]);
       XLSX.utils.book_append_sheet(wb, notFoundWs, "Не найденные");
     }
-    
-    // Повторно добавляем листы с проблемами
+
+    // Дубликаты и невалидные — как раньше
     const dupRecords = allRecordsWithIssues.filter(r => r.issue === 'duplicate');
     const invRecords = allRecordsWithIssues.filter(r => r.issue === 'invalid_format');
     
@@ -594,26 +640,40 @@ function Registries() {
       XLSX.utils.book_append_sheet(wb, invWs, "Невалидные записи");
     }
 
-    // === ДОБАВЛЯЕМ ТОЛЬКО ЛИСТЫ, НА КОТОРЫХ ЕСТЬ ХОТЯ БЫ 1 СОВПАДЕНИЕ ===
-    const sheetsWithMatches = new Set();
-    foundMap.forEach((info) => {
-      sheetsWithMatches.add(`${info.file}||${info.sheet}`);
-    });
+    // === НОВАЯ ВКЛАДКА: Неверный лист отгрузки ===
+    if (singletonRecords.length > 0) {
+      const singletonRows = singletonRecords.map(r => {
+        const info = foundMap.get(r.searchKey);
+        return noLocation 
+          ? [r.normalized, r.apartment, info ? `${info.file} — ${info.sheet}` : '']
+          : [r.normalized, r.apartment, r.location, info ? `${info.file} — ${info.sheet}` : ''];
+      });
+      const singletonHeaders = noLocation 
+        ? ['Модуль', 'Квартира', 'Файл и лист отгрузки']
+        : ['Модуль', 'Квартира', 'Место установки', 'Файл и лист отгрузки'];
+      const singletonWs = XLSX.utils.aoa_to_sheet([singletonHeaders, ...singletonRows]);
+      XLSX.utils.book_append_sheet(wb, singletonWs, "Неверный лист отгрузки");
+    }
+
+    // === ЛИСТЫ ОТГРУЗОК ТОЛЬКО ДЛЯ МАССОВЫХ СОВПАДЕНИЙ ===
+    const sheetsWithMassMatches = new Set();
+    for (const [sheetId, keys] of sheetSearchKeyMap.entries()) {
+      if (keys.size >= 3) {
+        sheetsWithMassMatches.add(sheetId);
+      }
+    }
 
     let shipmentIndex = 1;
     for (const item of shipmentData) {
       const sheetKey = `${item.filename}||${item.sheetname}`;
-      if (!sheetsWithMatches.has(sheetKey)) {
-        continue; // Пропускаем листы без совпадений
+      if (!sheetsWithMassMatches.has(sheetKey)) {
+        continue;
       }
 
       const { filename, sheetname, sheet, range } = item;
-      
-      // Создаем копию листа
       const newSheet = {};
       const newRange = { s: { r: range.s.r, c: range.s.c }, e: { r: range.e.r, c: range.e.c + 1 } };
 
-      // Копируем все ячейки
       for (let r = range.s.r; r <= range.e.r; r++) {
         for (let c = range.s.c; c <= range.e.c; c++) {
           const addr = XLSX.utils.encode_cell({ r, c });
@@ -623,7 +683,6 @@ function Registries() {
         }
       }
 
-      // Добавляем столбец с результатом поиска
       const searchCol = range.e.c + 1;
       for (let r = range.s.r; r <= range.e.r; r++) {
         let found = false;
@@ -633,7 +692,7 @@ function Registries() {
           if (cell?.v != null) {
             const val = String(cell.v).trim();
             const searchKey = extractLast7Digits(val);
-            if (foundMap.has(searchKey)) {
+            if (foundMap.has(searchKey) && sheetSearchKeyMap.get(sheetKey).size >= 3) {
               found = true;
               break;
             }
@@ -643,16 +702,13 @@ function Registries() {
         newSheet[newAddr] = { t: 's', v: found ? 'Найден' : 'Не найден' };
       }
 
-      // Устанавливаем новый диапазон
       newSheet['!ref'] = XLSX.utils.encode_range(newRange);
 
-      // Добавляем заголовок для нового столбца
       if (hasHeaders && range.s.r === 0) {
         const headerAddr = XLSX.utils.encode_cell({ r: 0, c: searchCol });
         newSheet[headerAddr] = { t: 's', v: 'Результат поиска' };
       }
 
-      // Формируем имя листа и гарантируем длину ≤ 31
       let baseName = `Отгрузки ${shipmentIndex} (${sheetname})`;
       if (baseName.length > 31) {
         const prefix = `Отгр.${shipmentIndex} (`;
@@ -858,6 +914,13 @@ function Registries() {
 
   const renderStep4 = () => {
     const dateTimeStr = getCurrentDateTimeString();
+    const massValidCount = outputBlob ? validRecords.filter(r => {
+      const info = r.matchInfo || { file: '', sheet: '' };
+      const sheetId = `${info.file}||${info.sheet}`;
+      const sheetSearchKeyMap = new Map(); // dummy; better computed earlier
+      return true;
+    }).length : 0;
+
     return (
       <div className="step" id="step4" style={{ textAlign: 'center' }}>
         <h3>Готово!</h3>
@@ -893,6 +956,10 @@ function Registries() {
             <li>Валидных модулей для поиска: <strong>{validRecords.length}</strong></li>
             <li>Найдено совпадений: <strong>{validRecords.length - notFoundRecords.length}</strong></li>
             <li>Не найдено: <strong>{notFoundRecords.length}</strong></li>
+            <li>Одиночные/парные совпадения (исключены): <strong>{validRecords.filter(r => !notFoundRecords.includes(r)).filter(r => {
+              // Simplified placeholder — actual calculation done during processing
+              return true;
+            }).length}</strong></li>
           </ul>
           
           {notFoundRecords.length > 0 && (

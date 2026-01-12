@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import Registries from './components/Registries';
 import Templates from './components/Templates';
-import RegistriesAutomatic from './components/RegistriesAutomatic';
+import RegistriesAutomatic from './components/RegistriesAutomatic/RegistriesAutomatic';
 
 export default function App() {
   const location = useLocation();

@@ -76,17 +76,13 @@ export async function processShipments({ sourceWorkbook, config, files, onLog })
 
     for (let row = startRow; row <= lastNonEmptyRow; row++) {
         const apartment = getCellValue(idxApartment, row);
-        const rowHasModule = idxModules.some(colIdx => {
-            const val = getCellValue(colIdx, row);
-            if (!val) return false;
-            if (detectedFormat === 'generic_last7') {
-                return extractLast7Digits(val).length === 7;
-            } else {
-                return validateModuleFormat(val, selectedFormat).valid;
-            }
-        });
+        // Обрабатываем строку, если в колонках модулей есть хотя бы одно непустое значение
+const rowHasAnyModuleValue = idxModules.some(colIdx => {
+    const val = getCellValue(colIdx, row);
+    return val !== '';
+});
 
-        if (!rowHasModule) continue;
+        if (!rowHasAnyModuleValue) continue;
 
         if (locationInHeader) {
             for (let i = 0; i < idxModules.length; i++) {
@@ -488,7 +484,7 @@ export async function processShipments({ sourceWorkbook, config, files, onLog })
 
     const reportBuf = XLSX.write(reportWb, { type: 'array', bookType: 'xlsx' });
     const reportBlob = new Blob([reportBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
+    onLog(`Количество одиночных/парных модулей (singletonRecords): ${singletonRecords.length}`, 'info');
     return {
         outputBlob,
         csvBlob,

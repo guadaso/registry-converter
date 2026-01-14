@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+// src/components/RegistriesAutomatic/RegistriesAutomatic.jsx
+
+import React, { useState, useEffect } from 'react';
 import Step1UploadSource from './Step1UploadSource.jsx';
 import Step2Confirm from './Step2Confirm.jsx';
 import Step3UploadShipments from './Step3UploadShipments.jsx';
@@ -7,7 +9,7 @@ import { useShipmentCache } from '../../hooks/useShipmentCache.js';
 import { parseSourceFile } from '../../utils/excel/parseSourceFile.js';
 import { processShipments } from '../../services/processShipments.js';
 import { readFileAsArrayBuffer } from '../../utils/file/readFileAsArrayBuffer.js';
-import { downloadBlob } from '../../utils/file/downloadBlob.js';
+import { downloadBlob, selectDownloadDirectory, getSelectedDirectoryPath } from '../../utils/file/downloadBlob.js';
 import { getCurrentDateTimeString } from '../../utils/date/getCurrentDateTimeString.js';
 
 function RegistriesAutomatic() {
@@ -20,20 +22,19 @@ function RegistriesAutomatic() {
     const [processing, setProcessing] = useState(false);
     const [progress, setProgress] = useState({ step1: 0, step3: 0 });
 
-    // Данные после анализа исходного файла
     const [sourceWorkbook, setSourceWorkbook] = useState(null);
     const [autoDetectedConfig, setAutoDetectedConfig] = useState(null);
 
-    // Результаты обработки
     const [totalInputRows, setTotalInputRows] = useState(0);
     const [removedDuplicates, setRemovedDuplicates] = useState(0);
     const [removedInvalid, setRemovedInvalid] = useState(0);
     const [notFoundRecords, setNotFoundRecords] = useState([]);
     const [allRecordsWithIssues, setAllRecordsWithIssues] = useState([]);
     const [validRecords, setValidRecords] = useState([]);
+    const [singletonRecords, setSingletonRecords] = useState([]);
 
-    // Для шага 3
     const [uploadedFilesForProcessing, setUploadedFilesForProcessing] = useState(null);
+    const [selectedDirectoryPath, setSelectedDirectoryPath] = useState('');
 
     const addLog = (message, type = 'info') => {
         setLogs(prev => [...prev, { message, type, timestamp: new Date().toLocaleTimeString() }]);
@@ -41,7 +42,6 @@ function RegistriesAutomatic() {
 
     const { cachedFiles, refresh: refreshCache, saveFileToCache, loadFileFromCache, clearCache } = useShipmentCache();
 
-    // === ШАГ 1: Загрузка и анализ исходного файла ===
     const handleSourceFile = async (file) => {
         if (!file) return;
         setLogs([]);
@@ -62,21 +62,24 @@ function RegistriesAutomatic() {
         }
     };
 
-    // === ШАГ 2 → ШАГ 3 ===
     const handleStart = () => {
         setStep(3);
     };
 
-    // === ШАГ 3: Обработка отгрузок ===
-    const handleStartProcessing = async ({ uploadedFiles, selectedCachedNames, showCached }) => {
+    const handleStartProcessing = async ({ mode, uploadedFiles, selectedCachedNames, showCached }) => {
         setLogs([]);
         setProcessing(true);
         setProgress({ ...progress, step3: 10 });
         let filesToProcess = [];
 
-        if (uploadedFiles) {
-            // Новые файлы → очищаем кэш и сохраняем их
-            addLog('Режим: поиск по новым загруженным файлам', 'info');
+        if (mode === 'new') {
+            if (!uploadedFiles || uploadedFiles.length === 0) {
+                addLog('Нет загруженных файлов', 'error');
+                setProcessing(false);
+                return;
+            }
+
+            // 🔥 Очищаем кэш и сохраняем новые файлы
             await clearCache();
             for (const file of uploadedFiles) {
                 try {
@@ -87,8 +90,14 @@ function RegistriesAutomatic() {
             }
             filesToProcess = Array.from(uploadedFiles);
             addLog(`Сохранено ${filesToProcess.length} файл(ов) в кэш`, 'success');
-        } else if (showCached && selectedCachedNames.size > 0) {
-            // Кэш
+
+        } else if (mode === 'cached') {
+            if (selectedCachedNames.size === 0) {
+                addLog('Не выбрано ни одного файла из кэша', 'error');
+                setProcessing(false);
+                return;
+            }
+
             addLog('Режим: поиск по файлам из кэша', 'info');
             for (const name of selectedCachedNames) {
                 const file = await loadFileFromCache(name);
@@ -100,19 +109,8 @@ function RegistriesAutomatic() {
                 filesToProcess.push(file);
             }
             addLog(`Загружено ${filesToProcess.length} файл(ов) из кэша`, 'success');
-        } else {
-            alert('Выберите файлы отгрузок или активируйте кэш.');
-            setProcessing(false);
-            return;
         }
 
-        if (filesToProcess.length === 0) {
-            addLog('Нет файлов для обработки', 'error');
-            setProcessing(false);
-            return;
-        }
-
-        // Вызов сервиса
         try {
             const result = await processShipments({
                 sourceWorkbook,
@@ -121,18 +119,27 @@ function RegistriesAutomatic() {
                 onLog: addLog
             });
 
-            const { outputBlob, csvBlob, stats, notFoundRecords, allRecordsWithIssues, validRecords } = result;
+            const {
+                outputBlob,
+                csvBlob,
+                reportBlob,
+                stats,
+                notFoundRecords,
+                allRecordsWithIssues,
+                validRecords,
+                singletonRecords
+            } = result;
 
             setOutputBlob(outputBlob);
             setCsvBlob(csvBlob);
-            setReportBlob(result.reportBlob); // если генерируется внутри processShipments
-
+            setReportBlob(reportBlob);
             setTotalInputRows(stats.totalInputRows);
             setRemovedDuplicates(stats.removedDuplicates);
             setRemovedInvalid(stats.removedInvalid);
             setValidRecords(validRecords);
             setAllRecordsWithIssues(allRecordsWithIssues);
             setNotFoundRecords(notFoundRecords);
+            setSingletonRecords(singletonRecords);
 
             setProgress({ ...progress, step3: 100 });
             setProcessing(false);
@@ -144,14 +151,24 @@ function RegistriesAutomatic() {
         }
     };
 
-    // Обновление списка кэшированных файлов при входе на шаг 3
     useEffect(() => {
         if (step === 3) {
             refreshCache();
         }
     }, [step, refreshCache]);
 
-    // === Общие утилиты ===
+    const handleSelectDirectory = async () => {
+        const success = await selectDownloadDirectory();
+        if (success) {
+            const path = await getSelectedDirectoryPath();
+            setSelectedDirectoryPath(path);
+            addLog('Папка для сохранения выбрана успешно', 'success');
+        } else {
+            setSelectedDirectoryPath('');
+            addLog('Папка не выбрана. Файлы будут сохранены в "Загрузки"', 'info');
+        }
+    };
+
     const downloadResult = (blob, baseName) => {
         if (blob) {
             const dateTimeStr = getCurrentDateTimeString();
@@ -159,7 +176,6 @@ function RegistriesAutomatic() {
         }
     };
 
-    // === Рендеринг шагов ===
     return (
         <div className="registries-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
             <div className="page-header">
@@ -195,17 +211,35 @@ function RegistriesAutomatic() {
                         />
                     )}
                     {step === 4 && (
-                        <Step4Results
-                            outputBlob={outputBlob}
-                            csvBlob={csvBlob}
-                            reportBlob={reportBlob}
-                            totalInputRows={totalInputRows}
-                            removedDuplicates={removedDuplicates}
-                            removedInvalid={removedInvalid}
-                            validRecords={validRecords}
-                            notFoundRecords={notFoundRecords}
-                            onDownload={downloadResult}
-                        />
+                        <>
+                            <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                                <button
+                                    className="btn-secondary"
+                                    onClick={handleSelectDirectory}
+                                    style={{ padding: '6px 12px', fontSize: '14px' }}
+                                >
+                                    📁 Выбрать папку для сохранения
+                                </button>
+                                <p style={{ fontSize: '12px', color: '#666', marginTop: '6px' }}>
+                                    {selectedDirectoryPath
+                                        ? `Файлы будут сохранены в: ${selectedDirectoryPath}`
+                                        : 'По умолчанию файлы скачиваются в «Загрузки»'}
+                                </p>
+                            </div>
+
+                            <Step4Results
+                                outputBlob={outputBlob}
+                                csvBlob={csvBlob}
+                                reportBlob={reportBlob}
+                                totalInputRows={totalInputRows}
+                                removedDuplicates={removedDuplicates}
+                                removedInvalid={removedInvalid}
+                                validRecords={validRecords}
+                                notFoundRecords={notFoundRecords}
+                                singletonRecords={singletonRecords}
+                                onDownload={downloadResult}
+                            />
+                        </>
                     )}
                 </div>
             </div>

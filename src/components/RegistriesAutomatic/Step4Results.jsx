@@ -1,3 +1,4 @@
+// src/components/RegistriesAutomatic/Step4Results.jsx
 import React from 'react';
 
 const Step4Results = ({
@@ -9,7 +10,8 @@ const Step4Results = ({
     removedInvalid,
     validRecords,
     notFoundRecords,
-    onDownload
+    onDownload,
+    singletonRecords = [] // ← значение по умолчанию на случай, если забыли передать
 }) => {
     const foundCount = validRecords.length - notFoundRecords.length;
 
@@ -27,31 +29,46 @@ const Step4Results = ({
                 <h4>Итоговая статистика:</h4>
                 <ul>
                     <li>Всего строк в исходном файле: <strong>{totalInputRows}</strong></li>
-                    {/* ✅ Изменено: теперь это количество номеров модулей */}
                     <li>Всего номеров модулей в исходном файле: <strong>{removedDuplicates + removedInvalid + validRecords.length}</strong></li>
                     <li>Удалено дубликатов: <strong>{removedDuplicates}</strong></li>
                     <li>Удалено невалидных записей: <strong>{removedInvalid}</strong></li>
                     <li>Валидных модулей для поиска: <strong>{validRecords.length}</strong></li>
                     <li>Найдено совпадений: <strong>{foundCount}</strong></li>
+                    <li>Удалено модулей с неверных листов отгрузок: <strong>{singletonRecords.length}</strong></li>
                     <li>Не найдено: <strong>{notFoundRecords.length}</strong></li>
                 </ul>
-
-                {notFoundRecords.length > 0 && (
-                    <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#ffebee', borderRadius: '6px' }}>
-                        <h5 style={{ color: '#c62828' }}>Не найденные модули:</h5>
-                        <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                            {notFoundRecords.map((r, i) => (
-                                <li key={i}>{r.normalized} (кв. {r.apartment})</li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
 
                 {(removedDuplicates > 0 || removedInvalid > 0) && (
                     <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#fff8e1', borderRadius: '6px' }}>
                         <h5 style={{ color: '#ff8f00' }}>Удалённые записи:</h5>
                         {removedDuplicates > 0 && <p>Дубликаты: {removedDuplicates} записей</p>}
                         {removedInvalid > 0 && <p>Невалидные форматы: {removedInvalid} записей</p>}
+                    </div>
+                )}
+
+                {(singletonRecords.length > 0 || notFoundRecords.length > 0) && (
+                    <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#ffebee', borderRadius: '6px' }}>
+                        <h5 style={{ color: '#c62828' }}>Удалённые записи после сверки с отгрузками:</h5>
+                        {notFoundRecords.length > 0 && (
+                            <>
+                                <p><strong>Не найденные модули:</strong></p>
+                                <ul style={{ margin: '5px 0 10px 20px' }}>
+                                    {notFoundRecords.map((r, i) => (
+                                        <li key={`notfound-${i}`}>{r.normalized} (кв. {r.apartment})</li>
+                                    ))}
+                                </ul>
+                            </>
+                        )}
+                        {singletonRecords.length > 0 && (
+                            <>
+                                <p><strong>Модули с неверных листов отгрузки:</strong></p>
+                                <ul style={{ margin: '5px 0 0 20px' }}>
+                                    {singletonRecords.map((r, i) => (
+                                        <li key={`singleton-${i}`}>{r.normalized} (кв. {r.apartment})</li>
+                                    ))}
+                                </ul>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

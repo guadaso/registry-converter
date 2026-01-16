@@ -3,7 +3,8 @@ import React, { useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import Registries from './components/Registries';
 import Templates from './components/Templates';
-import RegistriesAutomatic from './components/RegistriesAutomatic';
+import Mails from './components/Mails'
+import RegistriesAutomatic from './components/RegistriesAutomatic/RegistriesAutomatic';
 
 export default function App() {
   const location = useLocation();
@@ -11,10 +12,14 @@ export default function App() {
   useEffect(() => {
     const path = location.pathname;
     if (path === '/' || path === '/templates') {
-      document.title = 'Registry Converter — Шаблоны';
+      document.title = 'Шаблоны';
     } else if (path === '/registries') {
-      document.title = 'Registry Converter — Реестры';
-    } else {
+      document.title = 'Реестры';
+    }
+    else if(path ==='/letters'){
+      document.title = 'Письма'
+    }
+    else {
       document.title = 'Registry Converter';
     }
   }, [location.pathname]);
@@ -50,6 +55,14 @@ export default function App() {
                 Реестры(автоматически)
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/letters"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                Письма
+              </NavLink>
+            </li>
           </ul>
         </nav>
       </div>
@@ -60,6 +73,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/templates" replace />} />
           <Route path="/registries/manual" element={<Registries />} />
           <Route path="/registries/auto" element={<RegistriesAutomatic />} />
+          <Route path="/letters" element={<Mails />} />
           <Route path="/templates" element={<Templates />} />
         </Routes>
       </div>

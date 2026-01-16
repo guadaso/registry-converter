@@ -1,16 +1,16 @@
 // src/components/RegistriesAutomatic/RegistriesAutomatic.jsx
 
 import React, { useState, useEffect } from 'react';
-import Step1UploadSource from './Step1UploadSource.jsx';
-import Step2Confirm from './Step2Confirm.jsx';
-import Step3UploadShipments from './Step3UploadShipments.jsx';
-import Step4Results from './Step4Results.jsx';
-import { useShipmentCache } from '../../hooks/useShipmentCache.js';
-import { parseSourceFile } from '../../utils/excel/parseSourceFile.js';
-import { processShipments } from '../../services/processShipments.js';
-import { readFileAsArrayBuffer } from '../../utils/file/readFileAsArrayBuffer.js';
-import { downloadBlob, selectDownloadDirectory, getSelectedDirectoryPath } from '../../utils/file/downloadBlob.js';
-import { getCurrentDateTimeString } from '../../utils/date/getCurrentDateTimeString.js';
+import Step1UploadSource from './components/Step1UploadSource.jsx';
+import Step2Confirm from './components/Step2Confirm.jsx';
+import Step3UploadShipments from './components/Step3UploadShipments.jsx';
+import Step4Results from './components/Step4Results.jsx';
+import { useShipmentCache } from './components/hooks/useShipmentCache.js';
+import { parseSourceFile } from './components/utils/excel/parseSourceFile.js';
+import { processShipments } from './components/services/processShipments.js';
+import { readFileAsArrayBuffer } from './components/utils/file/readFileAsArrayBuffer.js';
+import { downloadBlob, selectDownloadDirectory, getSelectedDirectoryPath } from './components/utils/file/downloadBlob.js';
+import { getCurrentDateTimeString } from './components/utils/date/getCurrentDateTimeString.js';
 
 function RegistriesAutomatic() {
     const [step, setStep] = useState(1);
@@ -227,18 +227,27 @@ function RegistriesAutomatic() {
                                 </p>
                             </div>
 
-                            <Step4Results
-                                outputBlob={outputBlob}
-                                csvBlob={csvBlob}
-                                reportBlob={reportBlob}
-                                totalInputRows={totalInputRows}
-                                removedDuplicates={removedDuplicates}
-                                removedInvalid={removedInvalid}
-                                validRecords={validRecords}
-                                notFoundRecords={notFoundRecords}
-                                singletonRecords={singletonRecords}
-                                onDownload={downloadResult}
-                            />
+                            {step === 4 && (
+    <>
+        
+
+        <Step4Results
+            outputBlob={outputBlob}
+            csvBlob={csvBlob}
+            reportBlob={reportBlob}
+            totalInputRows={totalInputRows}
+            removedDuplicates={removedDuplicates}
+            removedInvalid={removedInvalid}
+            validRecords={validRecords}
+            notFoundRecords={notFoundRecords}
+            singletonRecords={singletonRecords}
+            onDownload={downloadResult}
+            onShowInputProcessor={() => {
+                // Можно добавить логику, если нужно
+            }}
+        />
+    </>
+)}
                         </>
                     )}
                 </div>

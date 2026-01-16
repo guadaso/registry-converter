@@ -89,7 +89,7 @@ const Step3UploadShipments = ({ cachedFiles, onProcess, onFileUpload, uploadedFi
 
       {/* Переключатель режима */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', margin: '15px 0' }}>
-        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+        {/* <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
           <input
             type="radio"
             name="mode"
@@ -98,8 +98,8 @@ const Step3UploadShipments = ({ cachedFiles, onProcess, onFileUpload, uploadedFi
             style={{ marginRight: '6px' }}
           />
           Новые файлы
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+        </label> */}
+        {/* <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
           <input
             type="radio"
             name="mode"
@@ -113,13 +113,13 @@ const Step3UploadShipments = ({ cachedFiles, onProcess, onFileUpload, uploadedFi
             style={{ marginRight: '6px' }}
           />
           Из кэша ({cachedFiles.length})
-        </label>
+        </label> */}
       </div>
 
       {/* Режим: Новые файлы */}
       {mode === 'new' && (
         <>
-          <p>Перетащите или выберите файлы отгрузок:</p>
+          <p>Загрузите файлы отгрузок:</p>
           <input
             type="file"
             accept=".xlsx,.xls"

@@ -1,5 +1,4 @@
 // src/utils/excel/parseSourceFile.js
-
 import * as XLSX from 'xlsx';
 import { extractLast7Digits } from '../data/extractLast7Digits.js';
 import { isTypicalLocationValue } from '../data/isTypicalLocationValue.js';
@@ -69,7 +68,11 @@ export async function parseSourceFile(arrayBuffer, addLog) {
     if (numericInSecond > numericInFirst) hasHeaders = true;
   }
 
-  const dataRows = hasHeaders ? cleanedRows.slice(1) : cleanedRows;
+  const dataStartIndex = hasHeaders ? 1 : 0;
+  const dataRows = cleanedRows.slice(dataStartIndex);
+
+  if (dataRows.length === 0) throw new Error('Нет строк с данными после заголовков');
+
   const allValues = dataRows.flat();
 
   // === ОПРЕДЕЛЕНИЕ ФОРМАТА МОДУЛЕЙ ===

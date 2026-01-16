@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1705400000000,
+    "templateName": "Исходящее письмо",
+    "fileName": "template.docx",
+    "fileType": "docx",
+    "staticFields": {
+      "sheetsCount": "2",
+      "letterType": "Исходящее"
+    },
+    "mappings": [
+      { "fragment": "ООО Ромашка", "variable": "Получатель" },
+      { "fragment": "г. Минск", "variable": "Адрес получателя" },
+      { "fragment": "Тест", "variable": "my_custom_field" }
+    ]
+  }
+]

@@ -1,5 +1,6 @@
 // src/components/RegistriesAutomatic/Step4Results.jsx
-import React from 'react';
+import React, { useState } from 'react';
+import Step5InputProcessor from './Step5InputProcessor.jsx';
 
 const Step4Results = ({
     outputBlob,
@@ -11,9 +12,12 @@ const Step4Results = ({
     validRecords,
     notFoundRecords,
     onDownload,
-    singletonRecords = [] // ← значение по умолчанию на случай, если забыли передать
+    singletonRecords = [],
+    onShowInputProcessor // ← Новый проп
 }) => {
     const foundCount = validRecords.length - notFoundRecords.length;
+
+    const [showInputProcessor, setShowInputProcessor] = useState(false);
 
     return (
         <div className="step" id="step4" style={{ textAlign: 'center' }}>
@@ -23,7 +27,33 @@ const Step4Results = ({
                 <button className="btn-primary" onClick={() => onDownload(outputBlob, 'output')}>Скачать результат</button>
                 <button className="btn-primary" onClick={() => onDownload(csvBlob, 'export')}>Скачать CSV</button>
                 <button className="btn-primary" onClick={() => onDownload(reportBlob, 'report')}>Скачать отчет</button>
+                <button
+                    className="btn-secondary"
+                    onClick={() => setShowInputProcessor(true)}
+                    style={{ padding: '6px 12px' }}
+                >
+                    🔄 Обработать import.xlsx
+                </button>
             </div>
+
+            {showInputProcessor && (
+                <div style={{ marginTop: '20px' }}>
+                    <Step5InputProcessor
+                        outputData={validRecords} // передаём массив объектов { apartment, location, normalized }
+                        onProcessComplete={(blob) => {
+                            // Скачиваем обработанный файл
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `import_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            setShowInputProcessor(false);
+                        }}
+                        onCancel={() => setShowInputProcessor(false)}
+                    />
+                </div>
+            )}
 
             <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
                 <h4>Итоговая статистика:</h4>
